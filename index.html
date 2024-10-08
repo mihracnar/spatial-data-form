@@ -48,7 +48,8 @@
         <input type="file" id="foto" name="foto" accept="image/*">
 
         <label for="konum">Konum:</label>
-        <div id="map"></div> <p id="coordinates"></p>
+        <div id="map"></div>
+        <p id="coordinates"></p>
 
         <button type="submit">Kaydet</button>
     </form>
@@ -67,7 +68,22 @@
         // OpenStreetMap katmanı
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        });
+
+        // Uydu görüntüsü katmanı
+        const satelliteLayer = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        });
+
+        // Katman kontrolü ekle (basemapleri değiştirmek için)
+        L.control.layers({
+            "OpenStreetMap": osmLayer,
+            "Uydu Görüntüsü": satelliteLayer
+        }, {}, { position: 'topright' }).addTo(map);
+
+        // Başlangıçta OpenStreetMap katmanını göster
+        osmLayer.addTo(map); 
 
         // Arama kontrolü ekle
         const searchControl = new L.Control.Search({
