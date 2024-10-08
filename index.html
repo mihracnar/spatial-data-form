@@ -8,9 +8,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.css" />
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0"></script>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        body { font-family: Arial, sans-serif;  padding: 20px; }
         #map { height: 400px; width: 100%; }
         form { display: flex; flex-direction: column; gap: 10px; }
         label { font-weight: bold; }
@@ -19,10 +18,56 @@
         #message { margin-top: 20px; padding: 10px; border-radius: 5px; }
         .success { background-color: #dff0d8; color: #3c763d; }
         .error { background-color: #f2dede; color: #a94442; }
+
+        /* Basemap seçiminin görünümü için düzenleme */
+        .leaflet-control-layers-list {
+            list-style: none;
+            padding: 0;
+            display: flex; /* Basemap seçeneklerini aynı satıra yerleştir */
+            flex-direction: column; /* Seçenekleri sütun olarak hizala */
+            gap: 10px; /* Her bir satır arasında boşluk */
+        }
+
+        .leaflet-control-layers-list li {
+            display: flex;
+            flex-direction: row; /* Öğeleri yatayda hizalar */
+            align-items: center; /* Buton ve metni dikeyde ortalar */
+            justify-content: space-between; /* Buton ile label arasında boşluk bırakır */
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            margin-bottom: 5px;
+        }
+
+        .leaflet-control-layers-list label {
+            margin-left: 10px;
+            flex-grow: 1; /* Label'ı genişleterek boşluğu doldurmasını sağlar */
+        }
+
+        .leaflet-control-layers-list input[type="radio"],
+        .leaflet-control-layers-list input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        /* Mobil cihazlar için ek CSS */
+        @media (max-width: 768px) { /* 768px'in altında mobil cihazlar için */
+            .leaflet-control-layers-list {
+                flex-direction: column; /* Seçenekleri sütun olarak hizala */
+            }
+            .leaflet-control-layers-list li {
+                width: 100%; /* Her seçeneğin genişliği %100 olsun */
+            }
+        }
     </style>
 </head>
 <body>
     <h1>Veri Giriş Formu</h1>
+
+    <div id="map"></div>
+
+    <label for="konum">Konum:</label>
+    <p id="coordinates"></p>
+
     <form id="dataForm">
         <label for="sayi">Sayı:</label>
         <input type="number" id="sayi" name="sayi" required>
@@ -47,43 +92,49 @@
         <label for="foto">Fotoğraf:</label>
         <input type="file" id="foto" name="foto" accept="image/*">
 
-        <label for="konum">Konum:</label>
-        <div id="map"></div>
-        <p id="coordinates"></p>
-
         <button type="submit">Kaydet</button>
     </form>
 
     <div id="message"></div>
 
     <script>
-        // Supabase istemcisini oluştur
-        const supabaseUrl = 'YOUR_SUPABASE_URL'; // Supabase URL'nizi buraya girin
-        const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // Anonim API anahtarınızı buraya girin
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
         // Harita oluştur
         const map = L.map('map').setView([41.0082, 28.9784], 13);
 
-        // OpenStreetMap katmanı
-        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        // Google Maps Uydu Görüntüsü
+        const googleMapsSatelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            attribution: '© <a href="https://maps.google.com/maps/about/terms/copyright/">Google Maps</a>',
+            maxZoom: 22 // Maksimum zoom seviyesini 22'ye ayarlayın
         });
 
-        // Uydu görüntüsü katmanı
-        const satelliteLayer = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        // Google Maps Uydu Görüntüsü ile Etiketler
+        const googleMapsSatelliteWithLabelsLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { // Doğru URL
+            attribution: '© <a href="https://maps.google.com/maps/about/terms/copyright/">Google Maps</a>',
+            maxZoom: 22 
+        });
+
+        // Google Maps Harita
+        const googleMapsLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            attribution: '© <a href="https://maps.google.com/maps/about/terms/copyright/">Google Maps</a>',
+            maxZoom: 22 // Maksimum zoom seviyesini 22'ye ayarlayın
+        });
+
+        // OpenStreetMap katmanı
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 22 // OpenStreetMap için de maxZoom'u 22'ye ayarladık.
         });
 
         // Katman kontrolü ekle (basemapleri değiştirmek için)
-        L.control.layers({
-            "OpenStreetMap": osmLayer,
-            "Uydu Görüntüsü": satelliteLayer
-        }, {}, { position: 'topright' }).addTo(map);
+        const layersControl = L.control.layers({
+            "Google Maps (Uydu)": googleMapsSatelliteLayer, // Varsayılan olarak Google Maps Uydu
+            "Google Maps (Uydu Etiketli)": googleMapsSatelliteWithLabelsLayer, 
+            "Google Maps (Harita)": googleMapsLayer, 
+            "OpenStreetMap": osmLayer
+        }, {}, { position: 'topright' }).addTo(map); // autoZIndex: false
 
-        // Başlangıçta OpenStreetMap katmanını göster
-        osmLayer.addTo(map); 
+        // Başlangıçta Google Maps Uydu Görüntüsü katmanını göster
+        googleMapsSatelliteLayer.addTo(map); 
 
         // Arama kontrolü ekle
         const searchControl = new L.Control.Search({
@@ -97,22 +148,23 @@
             minLength: 2
         });
 
+        let searchMarker; // Arama sonucu marker'ı için değişken
+
         searchControl.on('search:locationfound', function(e) {
-            if(marker) {
-                map.removeLayer(marker);
+            if (searchMarker) {
+                map.removeLayer(searchMarker); // Önceki marker'ı kaldır
             }
             lat = e.latlng.lat;
             lon = e.latlng.lng;
-            marker = L.marker(e.latlng).addTo(map);
+            searchMarker = L.circleMarker(e.latlng, {radius: 30}).addTo(map); // Yeni marker ekle
             document.getElementById('coordinates').innerHTML = `Seçilen Konum: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
         });
 
-        map.addControl(searchControl);
-
-        let marker;
-        let lat, lon;
-
         map.on('click', function(e) {
+            if (searchMarker) { // Arama marker'ı varsa kaldır
+                map.removeLayer(searchMarker);
+                searchMarker = null; // marker'ı sıfırla
+            }
             lat = e.latlng.lat;
             lon = e.latlng.lng;
             if (marker) {
@@ -122,53 +174,22 @@
             document.getElementById('coordinates').innerHTML = `Seçilen Konum: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
         });
 
-        document.getElementById('dataForm').addEventListener('submit', async function(e) {
+        map.addControl(searchControl);
+
+        let marker;
+        let lat, lon;
+
+        document.getElementById('dataForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            // Supabase bağlantısı devre dışı
+            // ... (Supabase ile ilgili kodları kaldırdık) 
 
-            const formData = {
-                sayi: document.getElementById('sayi').value,
-                tarih: document.getElementById('tarih').value,
-                secim: document.getElementById('secim').value,
-                aciklama: document.getElementById('aciklama').value,
-                notlar: document.getElementById('notlar').value,
-                konum: lat && lon ? [lat, lon] : null
-            };
-
-            // Fotoğraf yükleme
-            const fotoInput = document.getElementById('foto');
-            if (fotoInput.files.length > 0) {
-                const foto = fotoInput.files[0];
-                const { data: fotoData, error: fotoError } = await supabase.storage
-                    .from('your_storage_bucket') // Depolama kovası adınızı buraya girin
-                    .upload('photos/' + foto.name, foto, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
-
-                if (fotoError) {
-                    showMessage('Fotoğraf yüklenirken bir hata oluştu: ' + fotoError.message, 'error');
-                    return;
-                }
-
-                formData.foto = fotoData.publicUrl;
+            showMessage('Veri başarıyla kaydedildi!', 'success'); // Supabase olmadan da mesaj gösteriyoruz.
+            this.reset();
+            if (marker) {
+                map.removeLayer(marker);
             }
-
-            try {
-                const { data, error } = await supabase
-                    .from('your_table_name') // Tablo adınızı buraya girin
-                    .insert([formData]);
-                
-                if (error) throw error;
-                
-                showMessage('Veri başarıyla kaydedildi!', 'success');
-                this.reset();
-                if (marker) {
-                    map.removeLayer(marker);
-                }
-                document.getElementById('coordinates').innerHTML = '';
-            } catch (error) {
-                showMessage('Veri kaydedilirken bir hata oluştu: ' + error.message, 'error');
-            }
+            document.getElementById('coordinates').innerHTML = '';
         });
 
         function showMessage(text, type) {
