@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veri Giriş Formu</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #map { height: 400px; width: 100%; }
+        form { display: flex; flex-direction: column; gap: 10px; }
+        label { font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 5px; }
+        button { padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        #message { margin-top: 20px; padding: 10px; border-radius: 5px; }
+        .success { background-color: #dff0d8; color: #3c763d; }
+        .error { background-color: #f2dede; color: #a94442; }
+    </style>
+</head>
+<body>
+    <h1>Veri Giriş Formu</h1>
+    <form id="dataForm">
+        <label for="sayi">Sayı:</label>
+        <input type="number" id="sayi" name="sayi" required>
+
+        <label for="tarih">Tarih:</label>
+        <input type="date" id="tarih" name="tarih" required>
+
+        <label for="secim">Seçim:</label>
+        <select id="secim" name="secim" required>
+            <option value="">Seçiniz</option>
+            <option value="secenek1">Seçenek 1</option>
+            <option value="secenek2">Seçenek 2</option>
+            <option value="secenek3">Seçenek 3</option>
+        </select>
+
+        <label for="aciklama">Açıklama:</label>
+        <textarea id="aciklama" name="aciklama"></textarea>
+
+        <label for="notlar">Notlar:</label>
+        <textarea id="notlar" name="notlar"></textarea>
+
+        <label for="foto">Fotoğraf:</label>
+        <input type="file" id="foto" name="foto" accept="image/*">
+
+        <label for="konum">Konum:</label>
+        <div id="map"></div>
+        <p id="coordinates"></p>
+
+        <button type="submit">Kaydet</button>
+    </form>
+
+    <div id="message"></div>
+
+    <script>
+        // Supabase istemcisini oluştur
+        const supabaseUrl = 'YOUR_SUPABASE_URL'; // Supabase URL'nizi buraya girin
+        const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // Anonim API anahtarınızı buraya girin
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Harita oluştur
+        const map = L.map('map').setView([41.0082, 28.9784], 13);
+
+        // Uydu görüntüsü katmanı
+        var satelliteLayer = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        }).addTo(map);
+
+        // OpenStreetMap katmanı
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        // Katman kontrolü ekle
+        L.control.layers({
+            "Uydu Görüntüsü": satelliteLayer,
+            "OpenStreetMap": osmLayer
+        }, {}, { position: 'topright' }).addTo(map);
+
+        // Arama kontrolü ekle
+        const searchControl = new L.Control.Search({
+            url: 'https://nominatim.openstreetmap.org/search?format=json&q={s}',
+            jsonpParam: 'json_callback',
+            propertyName: 'display_name',
+            propertyLoc: ['lat','lon'],
+            marker: L.circleMarker([0,0],{radius:30}),
+            autoCollapse: true,
+            autoType: false,
+            minLength: 2
+        });
+
+        searchControl.on('search:locationfound', function(e) {
+            if(marker) {
+                map.removeLayer(marker);
+            }
+            lat = e.latlng.lat;
+            lon = e.latlng.lng;
+            marker = L.marker(e.latlng).addTo(map);
+            document.getElementById('coordinates').innerHTML = `Seçilen Konum: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        });
+
+        map.addControl(searchControl);
+
+        let marker;
+        let lat, lon;
+
+        map.on('click', function(e) {
+            lat = e.latlng.lat;
+            lon = e.latlng.lng;
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            marker = L.marker(e.latlng).addTo(map);
+            document.getElementById('coordinates').innerHTML = `Seçilen Konum: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        });
+
+        document.getElementById('dataForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                sayi: document.getElementById('sayi').value,
+                tarih: document.getElementById('tarih').value,
+                secim: document.getElementById('secim').value,
+                aciklama: document.getElementById('aciklama').value,
+                notlar: document.getElementById('notlar').value,
+                konum: lat && lon ? [lat, lon] : null
+            };
+
+            // Fotoğraf yükleme
+            const fotoInput = document.getElementById('foto');
+            if (fotoInput.files.length > 0) {
+                const foto = fotoInput.files[0];
+                const { data: fotoData, error: fotoError } = await supabase.storage
+                    .from('your_storage_bucket') // Depolama kovası adınızı buraya girin
+                    .upload('photos/' + foto.name, foto, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (fotoError) {
+                    showMessage('Fotoğraf yüklenirken bir hata oluştu: ' + fotoError.message, 'error');
+                    return;
+                }
+
+                formData.foto = fotoData.publicUrl;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('your_table_name') // Tablo adınızı buraya girin
+                    .insert([formData]);
+                
+                if (error) throw error;
+                
+                showMessage('Veri başarıyla kaydedildi!', 'success');
+                this.reset();
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+                document.getElementById('coordinates').innerHTML = '';
+            } catch (error) {
+                showMessage('Veri kaydedilirken bir hata oluştu: ' + error.message, 'error');
+            }
+        });
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = text;
+            messageDiv.className = type;
+        }
+    </script>
+</body>
+</html>
