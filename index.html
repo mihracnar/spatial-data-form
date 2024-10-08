@@ -3,21 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Veri Giriş Formu</title>
+    <title>Mekansal Veri Formu</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.72.0/dist/L.Control.Locate.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-search@3.0.2/dist/leaflet-search.min.js"></script>
+    <script src="https://unpkg.com/leaflet.locatecontrol@0.72.0/dist/L.Control.Locate.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif;  padding: 20px; }
-        #map { height: 400px; width: 100%; }
-        form { display: flex; flex-direction: column; gap: 10px; }
-        label { font-weight: bold; }
-        input, select, textarea { width: 100%; padding: 5px; }
-        button { padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-        #message { margin-top: 20px; padding: 10px; border-radius: 5px; }
-        .success { background-color: #dff0d8; color: #3c763d; }
-        .error { background-color: #f2dede; color: #a94442; }
+        body {
+            font-family: 'Open Sans', sans-serif; /* Open Sans fontunu kullanma */
+            padding: 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative; /* Arka plan resmini eklemek için */
+        }
+
+        /* Arka plan resmi için CSS */
+        .background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1; /* Şeffaflığı ayarlayın */
+            background-size: cover;
+            background-repeat: no-repeat;
+            z-index: -1; /* Arka planın içeriğin arkasında kalmasını sağlayın */
+        }
+
+        .container {
+            width: 80%;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center; /* Sadece başlık ortalanacak */
+        }
+
+        #map {
+            height: 400px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex; /* Label'ı flexbox olarak düzenle */
+            align-items: center; /* Etiket ve input'u dikey olarak hizala */
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        textarea {
+            height: 100px;
+        }
+
+        /* Kısa cevap alanları için tek satır yüksekliği */
+        #kisaCevap1,
+        #kisaCevap2 {
+            height: 30px; /* Tek satır yüksekliği için ayarlanabilir */
+            resize: none; /* Kullanıcının boyutunu değiştirmesini engelle */
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
 
         /* Basemap seçiminin görünümü için düzenleme */
         .leaflet-control-layers-list {
@@ -39,14 +147,18 @@
             margin-bottom: 5px;
         }
 
-        .leaflet-control-layers-list label {
-            margin-left: 10px;
-            flex-grow: 1; /* Label'ı genişleterek boşluğu doldurmasını sağlar */
-        }
-
+        /* Butonlar ve etiketler için hizalama */
         .leaflet-control-layers-list input[type="radio"],
         .leaflet-control-layers-list input[type="checkbox"] {
             margin-right: 10px;
+            width: 20px; /* Buton genişliğini ayarlayın */
+            height: 20px; /* Buton yüksekliğini ayarlayın */
+        }
+
+        .leaflet-control-layers-list label {
+            margin-left: 10px;
+            flex-grow: 1; /* Label'ı genişleterek boşluğu doldurmasını sağlar */
+            flex-shrink: 0; /* Etiketin genişliğinin daralmasını engeller */
         }
 
         /* Mobil cihazlar için ek CSS */
@@ -58,44 +170,79 @@
                 width: 100%; /* Her seçeneğin genişliği %100 olsun */
             }
         }
+
+        /* Konum butonu için CSS */
+        .leaflet-control-location {
+            background: none; /* Arkaplan rengi kaldır */
+            border: none; /* Çerçeve kaldır */
+            padding: 5px; /* Boşluk ekle */
+            cursor: pointer; /* İmleci değiştir */
+            border-radius: 3px; /* Yuvarlatılmış köşeler ekle */
+            font-size: 18px; /* Simge boyutunu ayarlayın */
+            color: #333; /* Simge rengini ayarlayın */
+        }
+
+        .leaflet-control-location:hover {
+            background-color: #eee; /* Fare üzerine geldiğinde arka plan rengi ekle */
+        }
+
+        /* Search Control genişliğini sınırlama */
+        .leaflet-control-search {
+            max-width: 600px; /* İstediğiniz maksimum genişliği ayarlayın */
+        }
+
+        /* Checkbox için hizalama */
+        #durum {
+            margin-left: 10px; /* Checkbox'ı label'ın sağında hizala */
+        }
     </style>
 </head>
 <body>
-    <h1>Veri Giriş Formu</h1>
+    <div class="background-image"></div>  <!-- Arka plan resmi div'i -->
 
-    <div id="map"></div>
+    <div class="container">  <!-- Ana kapsayıcı -->
+        <h1>Mekansal Veri Formu</h1>
 
-    <label for="konum">Konum:</label>
-    <p id="coordinates"></p>
+        <div id="map"></div>
 
-    <form id="dataForm">
-        <label for="sayi">Sayı:</label>
-        <input type="number" id="sayi" name="sayi" required>
+        <label for="konum">Konum:</label>
+        <p id="coordinates"></p>
 
-        <label for="tarih">Tarih:</label>
-        <input type="date" id="tarih" name="tarih" required>
+        <form id="dataForm">
+            <label for="sayi">Sayı:</label>
+            <input type="number" id="sayi" name="sayi" required>
 
-        <label for="secim">Seçim:</label>
-        <select id="secim" name="secim" required>
-            <option value="">Seçiniz</option>
-            <option value="secenek1">Seçenek 1</option>
-            <option value="secenek2">Seçenek 2</option>
-            <option value="secenek3">Seçenek 3</option>
-        </select>
+            <label for="tarih">Tarih:</label>
+            <input type="date" id="tarih" name="tarih" required>
 
-        <label for="aciklama">Açıklama:</label>
-        <textarea id="aciklama" name="aciklama"></textarea>
+            <label for="secim">Seçim:</label>
+            <select id="secim" name="secim" required>
+                <option value="">Seçiniz</option>
+                <option value="secenek1">Seçenek 1</option>
+                <option value="secenek2">Seçenek 2</option>
+                <option value="secenek3">Seçenek 3</option>
+            </select>
 
-        <label for="notlar">Notlar:</label>
-        <textarea id="notlar" name="notlar"></textarea>
+            <label for="durum">Durum:</label>
+            <input type="checkbox" id="durum" name="durum">  <!-- Boolean ifade için checkbox -->
 
-        <label for="foto">Fotoğraf:</label>
-        <input type="file" id="foto" name="foto" accept="image/*">
+            <label for="kisaCevap1">Kısa Cevap 1:</label> 
+            <textarea id="kisaCevap1" name="kisaCevap1" maxlength="50"></textarea>
 
-        <button type="submit">Kaydet</button>
-    </form>
+            <label for="kisaCevap2">Kısa Cevap 2:</label> 
+            <textarea id="kisaCevap2" name="kisaCevap2" maxlength="50"></textarea>
 
-    <div id="message"></div>
+            <label for="notlar">Notlar:</label>
+            <textarea id="notlar" name="notlar"></textarea>
+
+            <label for="foto">Fotoğraf:</label>
+            <input type="file" id="foto" name="foto" accept="image/*">
+
+            <button type="submit">Kaydet</button>
+        </form>
+
+        <div id="message"></div>
+    </div> <!-- Ana kapsayıcı sonu -->
 
     <script>
         // Harita oluştur
@@ -104,62 +251,76 @@
         // Google Maps Uydu Görüntüsü
         const googleMapsSatelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
             attribution: '© <a href="https://maps.google.com/maps/about/terms/copyright/">Google Maps</a>',
-            maxZoom: 22 // Maksimum zoom seviyesini 22'ye ayarlayın
+            maxZoom: 22
         });
 
-        // Google Maps Uydu Görüntüsü ile Etiketler
-        const googleMapsSatelliteWithLabelsLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { // Doğru URL
-            attribution: '© <a href="https://maps.google.com/maps/about/terms/copyright/">Google Maps</a>',
-            maxZoom: 22 
-        });
-
-        // Google Maps Harita
         const googleMapsLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             attribution: '© <a href="https://maps.google.com/maps/about/terms/copyright/">Google Maps</a>',
-            maxZoom: 22 // Maksimum zoom seviyesini 22'ye ayarlayın
+            maxZoom: 22
+        });
+
+        // Google Maps Uydu Hibrit Katmanı
+        const googleMapsSatelliteHybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            attribution: '© <a href="https://maps.google.com/maps/about/terms/copyright/">Google Maps</a>',
+            maxZoom: 22
         });
 
         // OpenStreetMap katmanı
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxZoom: 22 // OpenStreetMap için de maxZoom'u 22'ye ayarladık.
+            maxZoom: 22
         });
 
-        // Katman kontrolü ekle (basemapleri değiştirmek için)
+        // Katman kontrolü ekle
         const layersControl = L.control.layers({
-            "Google Maps (Uydu)": googleMapsSatelliteLayer, // Varsayılan olarak Google Maps Uydu
-            "Google Maps (Uydu Etiketli)": googleMapsSatelliteWithLabelsLayer, 
-            "Google Maps (Harita)": googleMapsLayer, 
+            "Google Maps (Uydu)": googleMapsSatelliteLayer,
+            "Google Maps (Harita)": googleMapsLayer,
+            "Google Maps (Uydu Hibrit)": googleMapsSatelliteHybridLayer, // Yeni katman eklendi
             "OpenStreetMap": osmLayer
-        }, {}, { position: 'topright' }).addTo(map); // autoZIndex: false
+        }, {}, { position: 'topright' }).addTo(map);
 
-        // Başlangıçta Google Maps Uydu Görüntüsü katmanını göster
-        googleMapsSatelliteLayer.addTo(map); 
+        googleMapsSatelliteLayer.addTo(map);
+
+        // "Konumuma Git" butonunu ekle
+        L.control.locate({
+            position: 'topright', // Sağ üst köşeye yerleştir
+            flyTo: true,
+            showPopup: false,
+            strings: {
+                title: "Konumuma Git"
+            },
+            icon: 'fa fa-location-arrow'
+        }).addTo(map);
 
         // Arama kontrolü ekle
         const searchControl = new L.Control.Search({
             url: 'https://nominatim.openstreetmap.org/search?format=json&q={s}',
             jsonpParam: 'json_callback',
             propertyName: 'display_name',
-            propertyLoc: ['lat','lon'],
-            marker: L.circleMarker([0,0],{radius:30}),
-            autoCollapse: true,
+            propertyLoc: ['lat', 'lon'],
+            marker: L.circleMarker([0, 0], { radius: 30 }),
+            autoCollapse: false,
             autoType: false,
-            minLength: 2
+            minLength: 2,
+            collapsed: true  // Search alanı başlangıçta geniş olsun
         });
+
+        map.addControl(searchControl);
 
         let searchMarker; // Arama sonucu marker'ı için değişken
 
+        // Lat, Lon girişi için işlev
         searchControl.on('search:locationfound', function(e) {
             if (searchMarker) {
                 map.removeLayer(searchMarker); // Önceki marker'ı kaldır
             }
             lat = e.latlng.lat;
             lon = e.latlng.lng;
-            searchMarker = L.circleMarker(e.latlng, {radius: 30}).addTo(map); // Yeni marker ekle
+            searchMarker = L.circleMarker(e.latlng, { radius: 30 }).addTo(map); // Yeni marker ekle
             document.getElementById('coordinates').innerHTML = `Seçilen Konum: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
         });
 
+        // Haritaya tıklama olayı
         map.on('click', function(e) {
             if (searchMarker) { // Arama marker'ı varsa kaldır
                 map.removeLayer(searchMarker);
@@ -174,17 +335,37 @@
             document.getElementById('coordinates').innerHTML = `Seçilen Konum: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
         });
 
-        map.addControl(searchControl);
+        // Search alanına lat, lon girişi için işlev
+        searchControl.on('search:textentered', function(e) {
+            // Kullanıcının girdiği metni al
+            let inputText = e.text.trim();
+
+            // Girilen metin virgül ile ayrılmış iki sayı ise, lat, lon olarak kabul et
+            const coords = inputText.split(',');
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                lat = parseFloat(coords[0]);
+                lon = parseFloat(coords[1]);
+
+                // Haritayı lat, lon değerlerine göre merkezle
+                map.setView([lat, lon], 13);
+
+                // Konum marker'ını ekle
+                if (searchMarker) {
+                    map.removeLayer(searchMarker);
+                }
+                searchMarker = L.marker([lat, lon]).addTo(map);
+
+                // Koordinatları ekrana yazdır
+                document.getElementById('coordinates').innerHTML = `Seçilen Konum: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+            }
+        });
 
         let marker;
         let lat, lon;
 
         document.getElementById('dataForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            // Supabase bağlantısı devre dışı
-            // ... (Supabase ile ilgili kodları kaldırdık) 
-
-            showMessage('Veri başarıyla kaydedildi!', 'success'); // Supabase olmadan da mesaj gösteriyoruz.
+            showMessage('Veri başarıyla kaydedildi!', 'success');
             this.reset();
             if (marker) {
                 map.removeLayer(marker);
@@ -197,6 +378,11 @@
             messageDiv.innerHTML = text;
             messageDiv.className = type;
         }
+
+        // Arka plan resmi için JavaScript
+        const backgroundImageDiv = document.querySelector('.background-image');
+        backgroundImageDiv.style.backgroundImage = 'url("https://www.freepik.com/free-vector/world-map-outline-background-with-globe-illustration_5387788.htm#query=world%20map%20outline&position=1&from_view=search&track=ais&selection=1&variation=1")'; // Arka plan resminin URL'sini değiştirin
     </script>
 </body>
 </html>
+
